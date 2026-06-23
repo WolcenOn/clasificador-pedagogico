@@ -9,6 +9,8 @@ GitHub Pages /docs/index.html
         ↓ fetch()
 Railway backend Go /analizar
         ↓
+PostgreSQL cache anónima por SHA-256
+        ↓ si no existe
 Gemini API
 ```
 
@@ -18,6 +20,7 @@ Gemini API
 .
 ├── backend/
 │   ├── main.go
+│   ├── cache.go
 │   ├── go.mod
 │   ├── railway.json
 │   └── .gitignore
@@ -37,6 +40,42 @@ Gemini API
 - Validación de tipo y tamaño de archivo.
 - Reintentos básicos ante errores temporales de Gemini.
 - Salida JSON estructurada con categorías cerradas.
+- Caché anónima opcional en PostgreSQL usando SHA-256 del contenido.
+- Indicador de origen del resultado: `IA` o `Caché`.
+
+## Cómo funciona la caché anónima
+
+El backend no guarda PDFs, imágenes ni contenido textual del archivo. Calcula una huella SHA-256 del contenido y la usa como clave anónima.
+
+```text
+Usuario sube archivo
+        ↓
+Backend calcula SHA-256
+        ↓
+Busca clasificación existente en PostgreSQL
+        ↓
+Si existe: devuelve resultado de Caché
+        ↓
+Si no existe: llama a Gemini, guarda clasificación y devuelve resultado de IA
+```
+
+La tabla se crea automáticamente al arrancar el backend si `DATABASE_URL` está configurada.
+
+Campos guardados:
+
+```text
+file_hash
+file_size
+mime_type
+edad
+area_principal
+justificacion
+created_at
+last_used_at
+uses_count
+```
+
+No se guarda el nombre original del archivo para mantener la base de datos más anónima.
 
 ## Despliegue del backend en Railway
 
@@ -54,15 +93,17 @@ GEMINI_API_KEY=tu_api_key_de_gemini
 FRONTEND_ORIGIN=https://wolcenon.github.io
 ```
 
-Si ya conoces la URL exacta de GitHub Pages, puedes usarla completa, por ejemplo:
+4. Para activar la caché, añade PostgreSQL en Railway y conecta su variable al backend:
 
 ```text
-FRONTEND_ORIGIN=https://wolcenon.github.io/clasificador-pedagogico
+DATABASE_URL=postgresql://...
 ```
 
-Nota: si CORS falla, usa temporalmente `*` para probar y luego vuelve a restringirlo.
+En Railway, normalmente se puede hacer desde el servicio backend añadiendo una referencia a la variable `DATABASE_URL` del servicio PostgreSQL.
 
-4. Railway usará `backend/railway.json` para compilar y arrancar el servidor.
+Nota sobre CORS: el navegador envía como origen `https://wolcenon.github.io`, sin la ruta `/clasificador-pedagogico`.
+
+5. Railway usará `backend/railway.json` para compilar y arrancar el servidor.
 
 ## Activar GitHub Pages
 
@@ -90,9 +131,28 @@ https://tu-proyecto.up.railway.app
 
 3. Sube PDFs o imágenes.
 4. Pulsa “Analizar recursos”.
-5. Descarga los resultados en CSV.
+5. Revisa si cada resultado viene de `IA` o `Caché`.
+6. Descarga los resultados en CSV.
 
-## Límites actuales de la primera versión
+## Comprobar estado del backend
+
+```text
+https://tu-proyecto.up.railway.app/health
+```
+
+Respuesta esperada sin PostgreSQL:
+
+```json
+{"status":"ok","cache":"disabled"}
+```
+
+Respuesta esperada con PostgreSQL:
+
+```json
+{"status":"ok","cache":"enabled"}
+```
+
+## Límites actuales
 
 Esta versión usa archivos inline en la petición a Gemini para simplificar el despliegue inicial. Por eso limita cada archivo a 10 MB. La siguiente mejora natural es migrar a Gemini Files API para manejar PDFs más grandes y reducir presión de memoria.
 
@@ -102,5 +162,5 @@ Esta versión usa archivos inline en la petición a Gemini para simplificar el d
 - Progreso real con SSE o polling.
 - Exportación Excel `.xlsx`.
 - Gemini Files API para documentos grandes.
-- Autenticación de usuarios.
-- Historial de análisis.
+- Panel de estadísticas de caché.
+- Historial de análisis sin datos personales.
