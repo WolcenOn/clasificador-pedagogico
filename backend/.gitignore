@@ -1,0 +1,5 @@
+app
+*.exe
+.env
+.DS_Store
+/tmp
