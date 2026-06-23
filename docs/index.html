@@ -30,7 +30,7 @@
     }
 
     main {
-      max-width: 1120px;
+      max-width: 1160px;
       margin: 0 auto;
       padding: 40px 20px 64px;
     }
@@ -158,17 +158,9 @@
     button:hover:not(:disabled) { transform: translateY(-1px); }
     button:disabled { cursor: not-allowed; opacity: 0.55; }
 
-    .primary {
-      background: var(--primary);
-      color: white;
-    }
-
+    .primary { background: var(--primary); color: white; }
     .primary:hover:not(:disabled) { background: var(--primary-dark); }
-
-    .secondary {
-      background: #e2e8f0;
-      color: #1e293b;
-    }
+    .secondary { background: #e2e8f0; color: #1e293b; }
 
     .status {
       margin-top: 18px;
@@ -231,10 +223,13 @@
       font-weight: 800;
       background: #e2e8f0;
       color: #334155;
+      white-space: nowrap;
     }
 
     .badge.ok { background: #dcfce7; color: #166534; }
     .badge.error { background: #fee2e2; color: #991b1b; }
+    .badge.cache { background: #e0f2fe; color: #075985; }
+    .badge.ia { background: #ede9fe; color: #5b21b6; }
 
     .empty {
       color: var(--muted);
@@ -268,7 +263,7 @@
         <h2>Configuración</h2>
         <label for="apiUrl">URL del backend en Railway</label>
         <input id="apiUrl" type="url" placeholder="https://tu-proyecto.up.railway.app" />
-        <p class="small">La API Key de Gemini no se introduce aquí: debe estar protegida como variable de entorno en Railway.</p>
+        <p class="small">La API Key de Gemini se protege en Railway. Si PostgreSQL está activo, los resultados repetidos salen de caché anónima.</p>
       </div>
     </section>
 
@@ -300,6 +295,7 @@
           <thead>
             <tr>
               <th>Estado</th>
+              <th>Origen</th>
               <th>Archivo</th>
               <th>Edad</th>
               <th>Área principal</th>
@@ -307,7 +303,7 @@
             </tr>
           </thead>
           <tbody id="resultsBody">
-            <tr><td class="empty" colspan="5">Todavía no hay resultados.</td></tr>
+            <tr><td class="empty" colspan="6">Todavía no hay resultados.</td></tr>
           </tbody>
         </table>
       </div>
@@ -431,7 +427,10 @@
         results = Array.isArray(payload.results) ? payload.results : [];
         renderResults();
         setProgress(100);
-        setStatus(`Análisis completado: ${results.filter(r => r.status === 'ok').length}/${results.length} correctos.`, 'ok');
+        const okCount = results.filter(r => r.status === 'ok').length;
+        const cacheCount = results.filter(r => r.fromCache).length;
+        const iaCount = results.filter(r => r.status === 'ok' && !r.fromCache).length;
+        setStatus(`Análisis completado: ${okCount}/${results.length} correctos · ${cacheCount} caché · ${iaCount} IA.`, 'ok');
         csvBtn.disabled = results.length === 0;
       } catch (error) {
         setStatus(error.message || 'No se pudo conectar con el backend.', 'error');
@@ -444,15 +443,18 @@
     function renderResults() {
       resultsBody.innerHTML = '';
       if (results.length === 0) {
-        resultsBody.innerHTML = '<tr><td class="empty" colspan="5">Todavía no hay resultados.</td></tr>';
+        resultsBody.innerHTML = '<tr><td class="empty" colspan="6">Todavía no hay resultados.</td></tr>';
         return;
       }
 
       for (const result of results) {
         const ok = result.status === 'ok';
+        const sourceLabel = ok ? (result.fromCache ? 'Caché' : 'IA') : '-';
+        const sourceClass = ok ? (result.fromCache ? 'cache' : 'ia') : '';
         const row = document.createElement('tr');
         row.innerHTML = `
           <td><span class="badge ${ok ? 'ok' : 'error'}">${ok ? 'OK' : 'Error'}</span></td>
+          <td><span class="badge ${sourceClass}">${sourceLabel}</span></td>
           <td>${escapeHTML(result.fileName || '')}</td>
           <td>${escapeHTML(result.edad || '-')}</td>
           <td>${escapeHTML(result.area_principal || '-')}</td>
@@ -463,10 +465,11 @@
     }
 
     function downloadCSV() {
-      const headers = ['archivo', 'estado', 'edad', 'area_principal', 'justificacion', 'error'];
+      const headers = ['archivo', 'estado', 'origen', 'edad', 'area_principal', 'justificacion', 'error'];
       const rows = results.map(result => [
         result.fileName || '',
         result.status || '',
+        result.fromCache ? 'cache' : (result.status === 'ok' ? 'ia' : ''),
         result.edad || '',
         result.area_principal || '',
         result.justificacion || '',
