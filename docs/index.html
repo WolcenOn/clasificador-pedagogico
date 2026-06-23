@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Clasificador Pedagógico Multimodal</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --border: #dbe3ef;
+      --success: #15803d;
+      --danger: #b91c1c;
+      --warning: #b45309;
+      --shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top left, #e0ecff 0, transparent 34rem), var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    main {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 40px 20px 64px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+      align-items: stretch;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 28px;
+      backdrop-filter: blur(10px);
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(2rem, 4vw, 3.4rem);
+      line-height: 1;
+      letter-spacing: -0.04em;
+    }
+
+    h2 {
+      margin: 0 0 16px;
+      font-size: 1.15rem;
+    }
+
+    p {
+      color: var(--muted);
+      line-height: 1.65;
+      margin: 0;
+    }
+
+    label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    input[type="url"] {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 13px 14px;
+      font: inherit;
+      outline: none;
+      background: white;
+    }
+
+    input[type="url"]:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+    }
+
+    .dropzone {
+      border: 2px dashed #93b4e8;
+      border-radius: 22px;
+      padding: 34px;
+      text-align: center;
+      background: #eff6ff;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+      cursor: pointer;
+    }
+
+    .dropzone.dragover {
+      transform: translateY(-2px);
+      border-color: var(--primary);
+      background: #dbeafe;
+    }
+
+    .dropzone strong {
+      display: block;
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+    }
+
+    .dropzone span {
+      display: block;
+      color: var(--muted);
+    }
+
+    .file-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .file-pill {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-top: 18px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 14px;
+      padding: 13px 18px;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 120ms ease, background 120ms ease, opacity 120ms ease;
+    }
+
+    button:hover:not(:disabled) { transform: translateY(-1px); }
+    button:disabled { cursor: not-allowed; opacity: 0.55; }
+
+    .primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .primary:hover:not(:disabled) { background: var(--primary-dark); }
+
+    .secondary {
+      background: #e2e8f0;
+      color: #1e293b;
+    }
+
+    .status {
+      margin-top: 18px;
+      min-height: 28px;
+      font-weight: 700;
+    }
+
+    .status.ok { color: var(--success); }
+    .status.error { color: var(--danger); }
+    .status.warn { color: var(--warning); }
+
+    .progress-wrap {
+      width: 100%;
+      height: 12px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      overflow: hidden;
+      margin-top: 14px;
+      display: none;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--primary), #60a5fa);
+      transition: width 260ms ease;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 18px;
+      background: white;
+    }
+
+    th, td {
+      padding: 13px 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      vertical-align: top;
+      font-size: 0.94rem;
+    }
+
+    th {
+      background: #f1f5f9;
+      color: #334155;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    .badge {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      background: #e2e8f0;
+      color: #334155;
+    }
+
+    .badge.ok { background: #dcfce7; color: #166534; }
+    .badge.error { background: #fee2e2; color: #991b1b; }
+
+    .empty {
+      color: var(--muted);
+      text-align: center;
+      padding: 28px;
+    }
+
+    .small {
+      font-size: 0.88rem;
+      color: var(--muted);
+      margin-top: 10px;
+    }
+
+    @media (max-width: 840px) {
+      .hero { grid-template-columns: 1fr; }
+      .card { padding: 22px; }
+      th, td { min-width: 140px; }
+      .table-scroll { overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <div class="card">
+        <h1>Clasificador Pedagógico Multimodal</h1>
+        <p>Sube PDFs o imágenes de recursos educativos y obtén una clasificación por edad, área lingüística principal y justificación psicopedagógica.</p>
+      </div>
+
+      <div class="card">
+        <h2>Configuración</h2>
+        <label for="apiUrl">URL del backend en Railway</label>
+        <input id="apiUrl" type="url" placeholder="https://tu-proyecto.up.railway.app" />
+        <p class="small">La API Key de Gemini no se introduce aquí: debe estar protegida como variable de entorno en Railway.</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>1. Sube tus recursos</h2>
+      <input id="fileInput" type="file" accept="application/pdf,image/png,image/jpeg,image/webp" multiple hidden />
+      <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Seleccionar archivos">
+        <strong>Arrastra y suelta archivos aquí</strong>
+        <span>o haz clic para seleccionar PDFs, PNG, JPG o WEBP</span>
+      </div>
+      <div id="fileList" class="file-list"></div>
+
+      <div class="actions">
+        <button id="analyzeBtn" class="primary" disabled>Analizar recursos</button>
+        <button id="clearBtn" class="secondary" type="button">Limpiar</button>
+        <button id="csvBtn" class="secondary" type="button" disabled>Descargar CSV</button>
+      </div>
+
+      <div id="status" class="status" aria-live="polite"></div>
+      <div id="progressWrap" class="progress-wrap" aria-hidden="true">
+        <div id="progressBar" class="progress-bar"></div>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top: 24px;">
+      <h2>2. Resultados</h2>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Estado</th>
+              <th>Archivo</th>
+              <th>Edad</th>
+              <th>Área principal</th>
+              <th>Justificación / Error</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody">
+            <tr><td class="empty" colspan="5">Todavía no hay resultados.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const apiUrlInput = document.getElementById('apiUrl');
+    const fileInput = document.getElementById('fileInput');
+    const dropzone = document.getElementById('dropzone');
+    const fileList = document.getElementById('fileList');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const csvBtn = document.getElementById('csvBtn');
+    const statusEl = document.getElementById('status');
+    const progressWrap = document.getElementById('progressWrap');
+    const progressBar = document.getElementById('progressBar');
+    const resultsBody = document.getElementById('resultsBody');
+
+    let selectedFiles = [];
+    let results = [];
+
+    apiUrlInput.value = localStorage.getItem('backendUrl') || '';
+    apiUrlInput.addEventListener('input', () => {
+      localStorage.setItem('backendUrl', apiUrlInput.value.trim());
+      refreshAnalyzeState();
+    });
+
+    dropzone.addEventListener('click', () => fileInput.click());
+    dropzone.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') fileInput.click();
+    });
+
+    ['dragenter', 'dragover'].forEach((eventName) => {
+      dropzone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        dropzone.classList.add('dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach((eventName) => {
+      dropzone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        dropzone.classList.remove('dragover');
+      });
+    });
+
+    dropzone.addEventListener('drop', (event) => {
+      addFiles(Array.from(event.dataTransfer.files || []));
+    });
+
+    fileInput.addEventListener('change', () => {
+      addFiles(Array.from(fileInput.files || []));
+      fileInput.value = '';
+    });
+
+    analyzeBtn.addEventListener('click', analyzeFiles);
+    clearBtn.addEventListener('click', clearAll);
+    csvBtn.addEventListener('click', downloadCSV);
+
+    function addFiles(files) {
+      const allowed = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp'];
+      const validFiles = files.filter(file => allowed.includes(file.type) || file.name.toLowerCase().endsWith('.pdf'));
+
+      if (validFiles.length !== files.length) {
+        setStatus('Algunos archivos se ignoraron porque no son PDF, PNG, JPG o WEBP.', 'warn');
+      }
+
+      selectedFiles = [...selectedFiles, ...validFiles];
+      renderFileList();
+      refreshAnalyzeState();
+    }
+
+    function renderFileList() {
+      fileList.innerHTML = '';
+      selectedFiles.forEach((file, index) => {
+        const item = document.createElement('div');
+        item.className = 'file-pill';
+        item.innerHTML = `
+          <span>${escapeHTML(file.name)}</span>
+          <span>${formatBytes(file.size)}</span>
+        `;
+        item.title = `Archivo ${index + 1}`;
+        fileList.appendChild(item);
+      });
+    }
+
+    async function analyzeFiles() {
+      const apiUrl = apiUrlInput.value.trim().replace(/\/$/, '');
+      if (!apiUrl) {
+        setStatus('Introduce la URL del backend de Railway.', 'error');
+        return;
+      }
+      if (selectedFiles.length === 0) {
+        setStatus('Selecciona al menos un archivo.', 'error');
+        return;
+      }
+
+      analyzeBtn.disabled = true;
+      csvBtn.disabled = true;
+      results = [];
+      renderResults();
+      setProgress(8);
+      setStatus(`Subiendo y analizando ${selectedFiles.length} archivo(s)...`, 'warn');
+
+      const formData = new FormData();
+      selectedFiles.forEach(file => formData.append('recursos', file));
+
+      try {
+        const response = await fetch(`${apiUrl}/analizar`, {
+          method: 'POST',
+          body: formData
+        });
+
+        setProgress(75);
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(payload?.error || `Error HTTP ${response.status}`);
+        }
+
+        results = Array.isArray(payload.results) ? payload.results : [];
+        renderResults();
+        setProgress(100);
+        setStatus(`Análisis completado: ${results.filter(r => r.status === 'ok').length}/${results.length} correctos.`, 'ok');
+        csvBtn.disabled = results.length === 0;
+      } catch (error) {
+        setStatus(error.message || 'No se pudo conectar con el backend.', 'error');
+        setProgress(0);
+      } finally {
+        refreshAnalyzeState();
+      }
+    }
+
+    function renderResults() {
+      resultsBody.innerHTML = '';
+      if (results.length === 0) {
+        resultsBody.innerHTML = '<tr><td class="empty" colspan="5">Todavía no hay resultados.</td></tr>';
+        return;
+      }
+
+      for (const result of results) {
+        const ok = result.status === 'ok';
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td><span class="badge ${ok ? 'ok' : 'error'}">${ok ? 'OK' : 'Error'}</span></td>
+          <td>${escapeHTML(result.fileName || '')}</td>
+          <td>${escapeHTML(result.edad || '-')}</td>
+          <td>${escapeHTML(result.area_principal || '-')}</td>
+          <td>${escapeHTML(result.justificacion || result.error || '-')}</td>
+        `;
+        resultsBody.appendChild(row);
+      }
+    }
+
+    function downloadCSV() {
+      const headers = ['archivo', 'estado', 'edad', 'area_principal', 'justificacion', 'error'];
+      const rows = results.map(result => [
+        result.fileName || '',
+        result.status || '',
+        result.edad || '',
+        result.area_principal || '',
+        result.justificacion || '',
+        result.error || ''
+      ]);
+
+      const csv = [headers, ...rows]
+        .map(row => row.map(escapeCSV).join(','))
+        .join('\n');
+
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `clasificacion-pedagogica-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function clearAll() {
+      selectedFiles = [];
+      results = [];
+      fileList.innerHTML = '';
+      renderResults();
+      setStatus('', '');
+      setProgress(0);
+      refreshAnalyzeState();
+    }
+
+    function refreshAnalyzeState() {
+      analyzeBtn.disabled = selectedFiles.length === 0 || !apiUrlInput.value.trim();
+    }
+
+    function setStatus(message, type) {
+      statusEl.textContent = message;
+      statusEl.className = `status ${type || ''}`;
+    }
+
+    function setProgress(value) {
+      if (value <= 0) {
+        progressWrap.style.display = 'none';
+        progressBar.style.width = '0%';
+        return;
+      }
+      progressWrap.style.display = 'block';
+      progressBar.style.width = `${Math.max(0, Math.min(100, value))}%`;
+    }
+
+    function escapeCSV(value) {
+      const text = String(value ?? '');
+      return `"${text.replaceAll('"', '""')}"`;
+    }
+
+    function escapeHTML(value) {
+      return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 B';
+      const units = ['B', 'KB', 'MB', 'GB'];
+      const index = Math.floor(Math.log(bytes) / Math.log(1024));
+      return `${(bytes / Math.pow(1024, index)).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+    }
+  </script>
+</body>
+</html>
