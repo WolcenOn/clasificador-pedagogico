@@ -30,6 +30,8 @@ type AnalysisResult struct {
 	AreaPrincipal  string `json:"area_principal"`
 	Justificacion  string `json:"justificacion"`
 	Status         string `json:"status"`
+	Source         string `json:"source,omitempty"`
+	FromCache      bool   `json:"fromCache"`
 	Error          string `json:"error,omitempty"`
 }
 
@@ -49,6 +51,10 @@ type GeminiResponse struct {
 }
 
 func main() {
+	var closeDB func()
+	cacheDB, closeDB = initCacheDB()
+	defer closeDB()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler)
 	mux.HandleFunc("/analizar", analizarHandler)
@@ -74,7 +80,13 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+
+	cacheStatus := "disabled"
+	if cacheDB != nil {
+		cacheStatus = "enabled"
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "cache": cacheStatus})
 }
 
 func analizarHandler(w http.ResponseWriter, r *http.Request) {
@@ -112,7 +124,9 @@ func analizarHandler(w http.ResponseWriter, r *http.Request) {
 	for _, fileHeader := range files {
 		result := processOneFile(r.Context(), client, apiKey, fileHeader)
 		results = append(results, result)
-		time.Sleep(800 * time.Millisecond)
+		if !result.FromCache {
+			time.Sleep(800 * time.Millisecond)
+		}
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"results": results})
@@ -143,6 +157,15 @@ func processOneFile(ctx context.Context, client *http.Client, apiKey string, fil
 		return result
 	}
 
+	fileHash := sha256Hex(content)
+	if cached, ok := getCachedAnalysis(ctx, fileHash); ok {
+		cached.FileName = result.FileName
+		cached.Status = "ok"
+		cached.Source = "cache"
+		cached.FromCache = true
+		return cached
+	}
+
 	analysis, err := callGemini(ctx, client, apiKey, mimeType, content)
 	if err != nil {
 		result.Error = err.Error()
@@ -151,6 +174,13 @@ func processOneFile(ctx context.Context, client *http.Client, apiKey string, fil
 
 	analysis.FileName = result.FileName
 	analysis.Status = "ok"
+	analysis.Source = "ia"
+	analysis.FromCache = false
+
+	if err := saveCachedAnalysis(ctx, fileHash, fileHeader.Size, mimeType, analysis); err != nil {
+		log.Printf("No se pudo guardar la clasificación en caché: %v", err)
+	}
+
 	return analysis
 }
 
@@ -163,7 +193,6 @@ func readAndValidateFile(file multipart.File, fileHeader *multipart.FileHeader) 
 	content := buf.Bytes()
 	mimeType := http.DetectContentType(content)
 	if headerType := fileHeader.Header.Get("Content-Type"); headerType != "" {
-		// Algunos navegadores identifican PDFs correctamente aquí aunque DetectContentType use application/octet-stream.
 		if isAllowedMime(headerType) {
 			mimeType = headerType
 		}
@@ -191,7 +220,7 @@ func isAllowedMime(mimeType string) bool {
 }
 
 func callGemini(ctx context.Context, client *http.Client, apiKey, mimeType string, content []byte) (AnalysisResult, error) {
-	endpoint := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s", modelName, apiKey)
+	endpoint := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent", modelName)
 
 	payload := map[string]any{
 		"contents": []map[string]any{
@@ -248,13 +277,14 @@ func callGemini(ctx context.Context, client *http.Client, apiKey, mimeType strin
 			return AnalysisResult{}, errors.New("No se pudo crear la petición a Gemini")
 		}
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-goog-api-key", apiKey)
 
 		resp, err := client.Do(req)
 		if err != nil {
 			lastErr = err
 		} else {
-			defer resp.Body.Close()
 			respBody, _ := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
 
 			if resp.StatusCode == http.StatusOK {
 				return parseGeminiResponse(respBody)
